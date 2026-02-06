@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Header from "./_components/header";
+import { Request } from "./_components/request";
 
 export default function Home() {
   return (
@@ -11,7 +12,7 @@ export default function Home() {
         <Header />
 
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div className="bg-zinc-900 p-4 rounded-lg">request</div>
+          <Request />
           <div className="bg-zinc-900 p-4 rounded-lg">response</div>
         </div>
       </div>
