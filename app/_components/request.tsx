@@ -1,20 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { MethodSelector, type HttpMethod } from "./request/method-selector";
+import { UrlInput } from "./request/url-input";
 
 export function Request() {
+    const [method, setMethod] = useState<HttpMethod>("GET");
     const [url, setUrl] = useState("");
+
     return (
-        <div className="bg-zinc-900 p-4 rounded-lg">
-            <label className="flex flex-1 flex-col gap-1">
-                <span className="text-xs font-medium text-zinc-400">URL</span>
-                <input
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    placeholder="https://oops.com/api/endpoint"
-                    className="h-10 w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 text-sm shadow-sm outline-none focus:ring-2 focus:ring-zinc-700"
-                />
-            </label>
-        </div>
-    )
+        <section className="rounded-lg bg-zinc-900 p-4">
+            <div className="mb-3 text-sm font-semibold text-zinc-50">Request</div>
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+                <MethodSelector value={method} onChange={setMethod} />
+                <UrlInput value={url} onChange={setUrl} />
+            </div>
+        </section>
+    );
 }
