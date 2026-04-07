@@ -60,9 +60,7 @@ interface TabPanelProps {
 }
 
 export function TabPanel({ id, activeId, children, className }: TabPanelProps) {
-  if (activeId !== id) {
-    return null;
-  }
+  const active = activeId === id;
 
   return (
     <div
@@ -70,6 +68,7 @@ export function TabPanel({ id, activeId, children, className }: TabPanelProps) {
       id={`panel-${id}`}
       aria-labelledby={`tab-${id}`}
       tabIndex={0}
+      hidden={!active}
       className={className}
     >
       {children}
