@@ -7,7 +7,6 @@ import { Request } from "./_components/request";
 export default function Home() {
   return (
     <div className="min-h-screen bg-black">
-
       <div className="mx-auto max-w-7xl px-4 py-6">
         <Header />
 
