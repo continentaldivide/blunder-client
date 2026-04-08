@@ -550,3 +550,147 @@ Great, thanks. Now please update the transcript of our conversation.
 ### Claude
 
 *(Updating transcript now.)*
+
+---
+
+### User
+
+Great. Let's implement the next commit please.
+
+### Claude
+
+Done. Four new files, one updated:
+
+- **New** `app/_components/request/auth-selector.tsx` — dropdown for None, Bearer Token, Basic Auth
+- **New** `app/_components/request/auth-bearer.tsx` — password input for bearer token
+- **New** `app/_components/request/auth-basic.tsx` — username and password inputs
+- **New** `app/_components/request/auth-section.tsx` — container that manages auth type state and conditionally renders the right form
+- **Updated** `app/_components/request/request-tabs.tsx` — `AuthSection` wired into the Auth tab panel
+
+---
+
+### User
+
+Great. Please talk me through your changes.
+
+### Claude
+
+Same overall pattern as before, but the auth section has one meaningful structural difference worth understanding.
+
+**`auth-selector.tsx`**
+
+Same `as const` + derived type pattern as `content-type-selector.tsx`. One addition: a separate `LABELS` object maps each auth type value to a human-readable display string. This keeps the internal values (`"bearer"`, `"basic"`) clean for logic while showing `"Bearer Token"` and `"Basic Auth"` in the UI. The type `Record<AuthType, string>` ensures every auth type has a label — if you add a new type to `AUTH_TYPES` without adding a label, TypeScript will error.
+
+**`auth-bearer.tsx` and `auth-basic.tsx`**
+
+Both are fully controlled, stateless components — same pattern as `HeaderRow`. One detail: both password fields use `type="password"` so the browser masks the input. `auth-basic.tsx` has two separate `onChange` callbacks (`onUsernameChange` and `onPasswordChange`) rather than a single object like `HeaderRow` uses. That's a deliberate choice — the two fields are independent strings with no reason to bundle them, so individual callbacks are simpler.
+
+**`auth-section.tsx`**
+
+This is the interesting one. Unlike `HeadersEditor` and `BodyEditor`, which always render the same UI, `AuthSection` renders *conditionally* based on the selected auth type:
+
+```tsx
+{authType === "bearer" && <AuthBearer ... />}
+{authType === "basic" && <AuthBasic ... />}
+```
+
+When `authType` is `"none"`, nothing extra renders. This means `AuthBearer` and `AuthBasic` **do** unmount when you switch away from them — the opposite of the tab panel fix we did earlier. That's intentional here: the inputs are simple and there's no reason to preserve a token you've cleared by switching to "None". But it also means the state is held in `AuthSection` rather than inside the child components, so the values survive switching *between* bearer and basic (you can toggle back and forth without losing what you typed).
+
+**`request-tabs.tsx`**
+
+One new import, `AuthSection` dropped into the auth panel. All three tabs now have content.
+
+---
+
+### User
+
+With regard to the auth-section info -- it sounds like you are asserting that if I type something into the 'bearer' or 'basic' fields, then switch to 'none,' what I typed will be cleared. Is that correct?
+
+### Claude
+
+No — and I need to correct what I said earlier. The values are **not** cleared.
+
+The state (`token`, `username`, `password`) lives in `AuthSection`, not inside the child components. When you switch to `"none"`, `AuthBearer` and `AuthBasic` unmount — but `AuthSection` stays mounted the whole time, and its state stays intact. Switch back to `"bearer"` and the token you typed will still be there.
+
+What I said about "no reason to preserve a token you've cleared by switching to None" was wrong. The values are in fact preserved across all auth type switches, including `"none"`. I should have caught that — sorry for the confusion.
+
+---
+
+### User
+
+That's okay. I knew you were wrong.
+
+Why did you assert that the values would be cleared while also explaining that the state lived in AuthSection?
+
+### Claude
+
+Good catch — it was a genuine contradiction and I should have caught it myself.
+
+I think what happened is I was reasoning about two things at once — the unmounting of the child components, and where the state lives — and I drew the wrong conclusion from the first without properly applying the second. The child components unmounting is true and relevant, but it only matters if the state lives *in* them. Since I had just explained that the state lives in `AuthSection`, I should have immediately recognized that unmounting the children is irrelevant to whether the values persist.
+
+It's a good example of how explanations can go wrong — each individual claim was locally plausible, but I didn't check them against each other before writing them down.
+
+---
+
+### User
+
+What safeguards can I use to reduce the likelihood of you making similar mistakes in the future?
+
+### Claude
+
+A few practical ones:
+
+**Ask me to check my own reasoning**
+
+After I give an explanation, ask "does anything you just said contradict itself?" Prompting me to review my own output catches the kind of local-vs-global inconsistency that tripped me up here. I'm more likely to catch contradictions when explicitly looking for them than when generating explanation for the first time.
+
+**Ask "why" when something seems off**
+
+You already did this — you noticed the contradiction and asked about it. That's the most reliable safeguard. You don't need to know the answer to ask "you said the state lives in AuthSection but also that values get cleared — how can both be true?" Forcing me to reconcile two claims often surfaces the error.
+
+**Be skeptical of confident language**
+
+Phrases like "this is intentional" or "deliberately" in my explanations are a flag worth noting. I use them to signal design intent, but I'm sometimes dressing up an inference as a fact. When I sound most certain is occasionally when I'm most worth questioning.
+
+**Verify code claims against the actual code**
+
+When I make a claim about behaviour — "this unmounts," "this preserves state," "this resets" — you can check it directly by reading the file. The code is always more authoritative than my description of it. In this case, reading `auth-section.tsx` would have immediately shown that all state is at the top of the component.
+
+The honest broader point is that I'm better at describing code I've just read than reasoning about runtime behaviour from memory. The further I get from the actual file contents, the more carefully my explanations should be treated.
+
+---
+
+### User
+
+Are there any guidelines I can put into a CLAUDE.md file that will help in this regard? For example, "Always check your own reasoning before giving a final answer."
+
+### Claude
+
+No existing CLAUDE.md file in the project. Here's what I'd suggest — keeping it focused on the failure modes that have actually shown up rather than generic advice:
+
+```markdown
+# Claude Guidelines
+
+## Reasoning checks
+
+- Before giving a final explanation, verify that all claims in the response are consistent with each other.
+- When describing runtime behaviour (what mounts, what unmounts, what persists, what resets), trace the logic back to the actual code rather than reasoning from memory.
+- Do not use confident language ("this is intentional", "deliberately") when making an inference rather than stating a fact from the code.
+
+## Code explanations
+
+- If asked to explain behaviour, read the relevant file first rather than relying on context from earlier in the conversation.
+- State clearly when something is an inference vs. something directly observable in the code.
+```
+
+That said, CLAUDE.md is most effective for things that are consistently enforceable — like formatting rules or project conventions. The reasoning failures you're describing are harder to fully prevent through instructions; they're more reliably caught by you questioning me when something sounds off, as you did here.
+
+---
+
+### User
+
+No, that's okay. Please update the transcript of our conversation.
+
+### Claude
+
+*(Updating transcript now.)*

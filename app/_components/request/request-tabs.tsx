@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TabList, TabPanel, type TabItem } from "../ui/tabs";
+import { AuthSection } from "./auth-section";
 import { BodyEditor } from "./body-editor";
 import { HeadersEditor } from "./headers-editor";
 
@@ -28,7 +29,9 @@ export function RequestTabs() {
         <TabPanel id="body" activeId={activeTab}>
           <BodyEditor />
         </TabPanel>
-        <TabPanel id="auth" activeId={activeTab} />
+        <TabPanel id="auth" activeId={activeTab}>
+          <AuthSection />
+        </TabPanel>
       </div>
     </div>
   );
