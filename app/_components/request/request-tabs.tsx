@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { TabList, TabPanel, type TabItem } from "../ui/tabs";
+import { BodyEditor } from "./body-editor";
 import { HeadersEditor } from "./headers-editor";
 
 const REQUEST_TABS: TabItem[] = [
@@ -24,7 +25,9 @@ export function RequestTabs() {
         <TabPanel id="headers" activeId={activeTab}>
           <HeadersEditor />
         </TabPanel>
-        <TabPanel id="body" activeId={activeTab} />
+        <TabPanel id="body" activeId={activeTab}>
+          <BodyEditor />
+        </TabPanel>
         <TabPanel id="auth" activeId={activeTab} />
       </div>
     </div>
