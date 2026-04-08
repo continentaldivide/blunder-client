@@ -694,3 +694,57 @@ No, that's okay. Please update the transcript of our conversation.
 ### Claude
 
 *(Updating transcript now.)*
+
+---
+
+### User
+
+Thanks. Please review the project as it stands for any bugs and report what you find.
+
+### Claude
+
+Here's what I found, in order of severity:
+
+**1. `request-tabs.tsx` — hardcoded default tab (low, pre-existing)**
+
+`useState("headers")` rather than `useState(REQUEST_TABS[0].id)`. We discussed this earlier and it wasn't fixed. Not a runtime bug today, but will silently break if the first tab is ever renamed or reordered.
+
+**2. `headers-editor.tsx` — all rows removed leaves empty UI with no way to add (low)**
+
+`removeHeader` filters by index with no floor. If a user removes every row, the list becomes empty and the "+ Add Header" button is the only way back — which is fine, but there's nothing communicating to the user that the list is empty vs. broken. Worth considering a minimum of one row, or an empty state message. Not a crash, but a UX gap.
+
+**3. `tabs.tsx` — inactive tab panels are focusable when hidden (low)**
+
+`TabPanel` always renders `tabIndex={0}` regardless of whether it's active. When `hidden` is set, the browser should prevent focus on hidden elements — and most do — but this isn't guaranteed across all browsers and assistive technologies. The inactive panels should have `tabIndex={-1}` when hidden:
+
+```tsx
+tabIndex={active ? 0 : -1}
+```
+
+**4. `tabs.tsx` — `className` ignored when `hidden` is set (low, potential)**
+
+If a consumer passes a `className` with `display` utilities (e.g. `flex`, `grid`) to `TabPanel`, those will be overridden by the browser's `hidden` attribute which applies `display: none`. This isn't a bug today since no `className` is passed to any panel currently, but it's a trap for whoever adds content later.
+
+**5. `tabs.tsx` — missing `border-b-2` on tab buttons (visual bug)**
+
+Looking at the active tab class in `TabList`, the `-mb-px border-b-2` classes described earlier as creating the "attached" visual effect are gone — they were present in the original version but appear to have been removed by the Prettier reformatting or a subsequent edit. The active tab currently has no bottom border indicator at all, only a text colour change. This is a visual regression.
+
+---
+
+### User
+
+Great. Most of these are not issues for this project, but please fix #3.
+
+### Claude
+
+Done — changed `tabIndex={0}` to `tabIndex={active ? 0 : -1}` in `app/_components/ui/tabs.tsx`.
+
+---
+
+### User
+
+Please update our transcript.
+
+### Claude
+
+*(Updating transcript now.)*

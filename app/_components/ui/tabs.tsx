@@ -67,7 +67,7 @@ export function TabPanel({ id, activeId, children, className }: TabPanelProps) {
       role="tabpanel"
       id={`panel-${id}`}
       aria-labelledby={`tab-${id}`}
-      tabIndex={0}
+      tabIndex={active ? 0 : -1}
       hidden={!active}
       className={className}
     >
