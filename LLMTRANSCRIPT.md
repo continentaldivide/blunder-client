@@ -748,3 +748,173 @@ Please update our transcript.
 ### Claude
 
 *(Updating transcript now.)*
+
+---
+
+### User
+
+Please implement the next commit.
+
+### Claude
+
+Done. Two files changed:
+
+- **New** `app/_components/request/send-button.tsx` — Send button with mock loading state (1.5s timeout, disables during load)
+- **Updated** `app/_components/request.tsx` — Send button added to the card header, border and shadow added, internal spacing tightened with `gap-4`
+
+---
+
+### User
+
+Please describe your changes. What do I need to be aware of?
+
+### Claude
+
+**`send-button.tsx`**
+
+Manages its own `loading` boolean state. On click it sets `loading` to `true` and uses a `setTimeout` to flip it back after 1.5 seconds — this is the mock loading state the plan calls for, since there's no real request being made yet. While loading, the button text changes to "Sending..." and `disabled` is set, which prevents double-clicks. The `disabled` prop is handled by `Button` via the spread of `ButtonHTMLAttributes`, so no extra work needed there.
+
+The `setTimeout` is the main thing to be aware of: it's a placeholder that will be removed entirely in Phase 5 when the real fetch logic goes in. It's not a timer that needs to be cleaned up with `useEffect` here since `SendButton` isn't going to unmount mid-request in normal usage, but if that changes it could cause a state update on an unmounted component.
+
+**`request.tsx`**
+
+Three changes beyond just adding the import:
+
+- The card header is now a flex row with `justify-between`, putting the "Request" title on the left and the Send button on the right.
+- The outer `<section>` got `border border-zinc-800` and `shadow-sm` added, and `rounded-lg` became `rounded-xl`. This is the visual polish the plan mentions for Commit 7 — the card now has a visible boundary rather than just a background colour change.
+- Spacing switched from ad-hoc margins (`mb-3`) to a consistent `flex flex-col gap-4` on the section, which is cleaner and easier to adjust later.
+
+The one thing worth noting: the plan mentions a `request-card.tsx` wrapper component for Commit 7, but I folded that polish directly into `request.tsx` rather than adding another file. The card wrapping is simple enough that a separate component would just be indirection with no benefit at this stage.
+
+---
+
+### User
+
+Let's make some visual adjustments. First, I don't think we need the card header. Let's remove the "Request" title and move the Send button either inside, or to the right of, the URL input field -- your choice.
+
+### Claude
+
+To the right of the URL input is the better choice — it's how most API clients lay it out, and it keeps the send action visually grouped with the URL rather than floating above.
+
+Done. The header row is gone. The Send button now sits at the end of the method/URL row, and `sm:items-end` aligns it to the bottom of the row on wider screens so it lines up with the input fields rather than the labels above them.
+
+---
+
+### User
+
+Let's move it into the URL input please.
+
+### Claude
+
+Done. The border and focus ring now live on the wrapper `div` rather than the `input` itself, so the whole field including the button has a unified appearance. The `action` prop is optional so `UrlInput` works fine without it.
+
+---
+
+### User
+
+You accomplished what I asked, but it looks really ugly. Are there any styling changes you can suggest that would make it more attractive?
+
+### Claude
+
+A few options, from subtle to more opinionated:
+
+**1. Pill button with an accent colour**
+
+Replace the current zinc-700 button with a smaller, rounded-full button in a more distinct colour — blue is conventional for a primary send action:
+
+```tsx
+"rounded-full bg-blue-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-blue-500"
+```
+
+**2. Icon-only button**
+
+Drop the text entirely and use an arrow or paper plane icon (you'd need lucide-react or similar). Cleaner, more compact, common in modern API tools. Downside: less obvious to new users.
+
+**3. Subtle separator with a text button**
+
+Keep the button text but add a left border to visually divide it from the input, making it feel more like a split input:
+
+```tsx
+"border-l border-zinc-700 pl-1"
+```
+
+**4. Move the button outside but attach it**
+
+Remove the rounded left corners on the button and the rounded right corners on the input so they visually connect as one unit — the "input group" pattern used by Bootstrap and others:
+
+- Input: `rounded-r-none`
+- Button: `rounded-l-none rounded-r-lg h-10`
+
+My recommendation would be **option 3 combined with a smaller, pill-shaped button** — it keeps the layout you've chosen but gives the button a clear visual boundary without needing a colour change or external dependencies.
+
+---
+
+### User
+
+Please try option 3 combined with a smaller, pill-shaped button. I'd like to see what that looks like.
+
+### Claude
+
+Done — separator line between the text input and the button, smaller pill-shaped button.
+
+---
+
+### User
+
+Let's switch from the solution you implemented to option 1 that you proposed.
+
+### Claude
+
+*(Asked to make it green instead of blue.)*
+
+Done — green pill button, no separator.
+
+---
+
+### User
+
+Interesting -- the bg-green styling isn't applying. Why is that?
+
+### Claude
+
+It's a Tailwind specificity issue caused by how `Button` constructs its className:
+
+```tsx
+className={`${base} ${variants[variant]} ${className}`}
+```
+
+`variants["primary"]` includes `bg-zinc-700`, and `className` (with `bg-green-700`) is appended after it. You might expect the later class to win, but Tailwind doesn't work that way — the order in the **generated stylesheet** determines precedence, not the order in the `class` attribute. Both `bg-zinc-700` and `bg-green-700` have identical specificity, and whichever Tailwind generated first in its CSS output wins. In practice that's unpredictable.
+
+---
+
+### User
+
+Instead of using a plain `<button>`, why not just add an additional variant to our button component?
+
+### Claude
+
+Good call — that's cleaner and keeps things consistent. Added a `send` variant to `button.tsx` with the green colours, and updated `send-button.tsx` to use `variant="send"` with `rounded-full px-4 py-1.5 text-xs` for the pill shape.
+
+---
+
+### User
+
+Thanks. Why was adding a new variant not your first approach to implementing the custom styles needed for this button in the first place?
+
+### Claude
+
+Honest answer: I didn't think carefully enough about what the `className` prop on `Button` was actually for.
+
+When you asked me to switch to option 1, I reached for `className` override as the quick path — it's a common pattern and `Button` exposes it, so it felt natural. I should have immediately recognized that you can't reliably override a Tailwind background colour that's already set by the component, because of how Tailwind's stylesheet ordering works. That should have ruled out the `className` approach before I even tried it.
+
+A new variant was the right answer from the start. The `send` button has a distinct, stable visual identity — it's not a one-off tweak to an existing style, it's a new category of button. That's exactly what variants are for. I built the variant system myself when I wrote `button.tsx`, so I should have reached for it immediately.
+
+---
+
+### User
+
+Thanks. Please update our transcript.
+
+### Claude
+
+*(Updating transcript now.)*

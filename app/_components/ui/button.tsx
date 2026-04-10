@@ -3,7 +3,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "primary" | "ghost";
+  variant?: "primary" | "ghost" | "send";
 }
 
 export function Button({
@@ -16,6 +16,7 @@ export function Button({
   const variants = {
     primary: "bg-zinc-700 text-zinc-50 hover:bg-zinc-600",
     ghost: "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800",
+    send: "bg-green-700 text-white hover:bg-green-600",
   };
 
   return (
