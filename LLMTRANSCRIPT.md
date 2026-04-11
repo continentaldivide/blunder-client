@@ -917,4 +917,145 @@ Thanks. Please update our transcript.
 
 ### Claude
 
+*(Transcript updated.)*
+
+---
+
+### User
+
+Please give me an overview of all state that currently exists in this project and where it lives. Consider whether there's enough spread-out state to justify some kind of global state management to reduce the amount of prop drilling.
+
+### Claude
+
+Here's the full state map:
+
+| Component | State | Type |
+|---|---|---|
+| `Request` | `method` | `HttpMethod` |
+| `Request` | `url` | `string` |
+| `RequestTabs` | `activeTab` | `string` |
+| `SendButton` | `loading` | `boolean` |
+| `HeadersEditor` | `headers` | `Header[]` |
+| `BodyEditor` | `contentType` | `ContentType` |
+| `BodyEditor` | `body` | `string` |
+| `AuthSection` | `authType` | `AuthType` |
+| `AuthSection` | `token` | `string` |
+| `AuthSection` | `username` | `string` |
+| `AuthSection` | `password` | `string` |
+
+**Is global state management warranted?**
+
+No — and there's no prop drilling either. Each piece of state is owned by the component that needs it, and none of it is being passed down multiple levels. The deepest any prop travels is one level (e.g. `Request` → `MethodSelector`).
+
+The more interesting question is whether this state *should* stay scattered. Right now, none of the sibling components can see each other's state. That's fine for the UI, but it becomes a problem in Commit 8 (sending the request), because `SendButton` will need `method`, `url`, `headers`, `contentType`, and `body` to actually make a fetch call. That state currently lives in four different components with no shared ancestor below `Request`.
+
+When you get to that point, you have two practical options:
+
+1. **Lift state to `Request`** — move `headers`, `contentType`, `body`, and auth fields up into `Request` and thread them down as props. Simple, no new dependencies, but `Request` becomes a large state hub.
+2. **React Context** — create a `RequestContext` that all the tab children read from. Avoids prop drilling through `RequestTabs`, but adds boilerplate. Reasonable if the form grows further.
+
+For a tool this size, lifting to `Request` is probably the right call when you get there. Context is worth it if you anticipate the form getting significantly more complex.
+
+---
+
+### User
+
+Thanks. We can consider this further later. For now, please implement the next commit, then talk me through your changes and describe any issues that a junior maintaining this code should be aware of.
+
+### Claude
+
+*(Built Commit 8: response card and status display.)*
+
+Three new files, no changes to existing components.
+
+**`status-badge.tsx`** — renders a colored pill badge for an HTTP status code. Two private helper functions handle the logic: `getStatusColor` maps status ranges (2xx/3xx/4xx/5xx) to Tailwind color pairs; `getStatusText` maps specific codes to their canonical reason phrases (e.g. 200 → "OK").
+
+**`response-meta.tsx`** — renders "Time" and "Size" metadata. Uses a small internal `MetaItem` component to keep the label/value pair consistent. Both are plain strings for now — the real values come in Commit 18.
+
+**`response-card.tsx`** — the card wrapper that matches the visual style of the `Request` card. The mock values (`MOCK_STATUS`, `MOCK_DURATION`, `MOCK_SIZE`) are module-level constants in `SCREAMING_SNAKE_CASE` so it's obvious they're placeholders.
+
+**`page.tsx`** — replaced the placeholder `<div>response</div>` with `<ResponseCard />`.
+
+**Things to be aware of:**
+
+- **The mock constants are the only thing to replace in Commit 18.** `ResponseCard` will need to accept props instead — `status`, `duration`, and `size` will come from the parent that holds the fetch result. Delete the three `MOCK_*` constants and add a props interface.
+- **`getStatusText` has a fallback of `"Unknown"`** for codes not in the lookup table — the list covers common codes but isn't exhaustive.
+- **`getStatusColor` has a fallback of zinc (grey) for anything below 200**, covering informal codes like 100/102 that rarely appear in practice.
+- **`StatusBadge` has no "no response" state** — it always expects a number. In Commit 12, a separate `EmptyState` component will render instead of the whole card when there's been no request yet.
+
+---
+
+### User
+
+I'm curious about a minor code organization decision. response-meta.tsx includes two interfaces and two components. They're listed in reverse order of each other (i.e., A B B A instead of A B A B). What's the reasoning for doing it one way over the other?
+
+### Claude
+
+The order in that file is:
+1. `ResponseMetaProps` (interface)
+2. `MetaItemProps` (interface)
+3. `MetaItem` (component)
+4. `ResponseMeta` (component)
+
+The reasoning behind grouping both interfaces at the top is that interfaces are pure type declarations — they have no runtime existence. Putting them together creates an implicit "types section" that gives you a quick overview of the data shapes before you read any implementation code.
+
+The alternative (each interface immediately above its component) co-locates each contract with its implementation, which makes it easier to read each component in isolation without scrolling.
+
+Both are defensible. In practice, grouping interfaces at top works well when they're simple; co-locating works better when the interface is complex or the file is long. For a file this small, the distinction is essentially cosmetic. If you have a preference, pick it and apply it consistently — that consistency matters more than which pattern you choose.
+
+---
+
+### User
+
+You misunderstood me. The order of the interfaces is "responsemeta" / "metaitem". The order of the components is the other way around.
+
+### Claude
+
+You're right, I misread it. The actual order is:
+
+1. `ResponseMetaProps`
+2. `MetaItemProps`
+3. `MetaItem`
+4. `ResponseMeta`
+
+The components are in dependency order — `MetaItem` has to be defined before `ResponseMeta` uses it. The interfaces ended up in the opposite order, probably because I wrote `ResponseMeta` first in my head (it's the public-facing component) and added `MetaItem` as an afterthought, then didn't reorder the interfaces to match.
+
+It's an inconsistency with no good justification. The cleanest fix would be to match the interface order to the component order — `MetaItemProps` first, then `ResponseMetaProps`.
+
+---
+
+### User
+
+What's the argument for keeping it in the existing order?
+
+### Claude
+
+Public API first. `ResponseMetaProps` is the interface a consumer of this module actually cares about — it's what you pass when you use `ResponseMeta` from outside. `MetaItemProps` is an internal implementation detail that no other file needs to know about.
+
+So there's a coherent (if implicit) principle at work: interfaces ordered by visibility (public → private), components ordered by dependency (private → public). The two orderings are different because they're optimizing for different things.
+
+Whether that's intentional enough to be worth keeping is a judgment call. I'd say it's not — the mixed principles are more likely to confuse than help. Consistent top-to-bottom order in both is easier to reason about.
+
+---
+
+### User
+
+Thanks. Go ahead and switch the order please.
+
+### Claude
+
+*(Switched `MetaItemProps` and `ResponseMetaProps` so both interfaces are in dependency/private-first order, matching the component order.)*
+
+---
+
+### User
+
+Go ahead and update our transcript as well please.
+
+### Claude
+
+*(Transcript updated.)*
+
+---
+
 *(Updating transcript now.)*
