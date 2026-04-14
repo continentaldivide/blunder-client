@@ -1,4 +1,7 @@
+"use client";
+
 import { ResponseMeta } from "./response-meta";
+import { ResponseTabs } from "./response-tabs";
 import { StatusBadge } from "./status-badge";
 
 // Mock data — will be replaced in Commit 18 when wired to real responses
@@ -15,6 +18,7 @@ export function ResponseCard() {
           <ResponseMeta duration={MOCK_DURATION} size={MOCK_SIZE} />
         </div>
       </div>
+      <ResponseTabs />
     </section>
   );
 }
