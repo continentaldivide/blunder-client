@@ -1129,3 +1129,168 @@ Great. Please update our transcript.
 *(Transcript updated.)*
 
 ---
+
+### User
+
+I'd like to accelerate this a bit. Please implement the next two commits/the rest of phase 3.
+
+### Claude
+
+*(Built Commits 11 and 12.)*
+
+**Commit 11 — response body viewer:**
+
+- **`text-viewer.tsx`** — plain `<pre>` block for non-JSON content
+- **`json-viewer.tsx`** — collapsible JSON tree with recursive rendering
+- **`body-formatter.tsx`** — routes to `JsonViewer` or `TextView` based on content type; falls back to `TextView` if JSON is malformed
+- **`body-viewer.tsx`** — holds mock constants, renders `BodyFormatter`
+
+**Commit 12 — empty and error states:**
+
+- **`empty-state.tsx`** — shown before any request has been sent
+- **`error-state.tsx`** — accepts a `message` prop, shown on failed requests
+- **`response-card.tsx`** — added `ResponseState` type and `MOCK_STATE` constant; conditionally renders `EmptyState`, `ErrorState`, or the full success view
+
+**Things to be aware of:**
+
+- `MOCK_STATE` in `response-card.tsx` is the switch for testing all three states
+- `JsonViewer` uses `Set` as state — always creates `new Set(prev)` before modifying, because React detects changes by reference equality
+- Depth indentation uses inline `style` rather than Tailwind because dynamic values can't be expressed as Tailwind classes (generated at build time)
+- `BodyFormatter` only handles `application/json` and plain text — image viewer was omitted
+
+---
+
+### User
+
+I like the arrows that collapse nested segments. But can those all be vertically aligned on the far left for convenience? Let's also make them just a bit smaller.
+
+### Claude
+
+*(Restructured `json-viewer.tsx` from recursive rendering to a flat-list approach. Moved toggle button to a fixed column before the depth indent.)*
+
+The original `JsonNode` owned its button and children — the button appeared after the key name when nested, drifting right with depth. The rewrite splits into `JsonValue` (value only, no button) and `JsonEntry` (fixed gutter + key + value). Buttons are now `text-[9px]` (down from `text-xs` / 12px).
+
+---
+
+### User
+
+Is it possible to add line numbers at the far left?
+
+### Claude
+
+Yes — restructured to a full flat-list architecture. `flattenTree` walks the JSON tree and produces a `JsonRow[]` array respecting collapsed state. `JsonViewer` maps over that array with indices as line numbers. Collapsing a section removes those rows, so line numbers stay sequential from visible rows.
+
+---
+
+### User
+
+> Line numbers renumber automatically when you collapse a section — collapse meta and lines 6–8 disappear, so everything below shifts up.
+
+This behavior is incorrect. When lines are hidden, their line numbers should disappear.
+
+### Claude
+
+*(Fixed. `flattenTree` is now called twice on every render: once with an empty `Set` to assign each row a stable line number by `path+type`, then once with the real `collapsed` state to get the visible rows. Each visible row looks up its number from the map — so collapsing `meta` hides lines 5–8 but leaves line 9 as `9`, not `5`.)*
+
+---
+
+### User
+
+Now let's fix the ToggleButton positioning. These should line up vertically with the one in row 1.
+
+### Claude
+
+*(Moved the button column before the depth indent in `JsonRowView`. Row structure is now: `[line number] [button column] [indent] [content]`. The button column is a fixed `w-3` span on every row — empty for rows without a button — so all buttons sit at the same x position regardless of depth.)*
+
+---
+
+### User
+
+Great, that's much better. Now let's dress up the ToggleButton with some styling. Can we change the cursor on-hover, as well as giving it a subtle background color on-hover with a rounded border?
+
+### Claude
+
+*(Added `cursor-pointer`, `hover:bg-zinc-700`, and `rounded` to `ToggleButton`.)*
+
+---
+
+### User
+
+Now that we've iterated a few times -- please sum up the cumulative changes for me since initially adding commit 11 + 12, calling out anything specific in the architecture that I should be aware of or that may take a closer look to fully understand.
+
+### Claude
+
+Summarised all files created and modified, then called out key architectural points in `json-viewer.tsx`:
+
+- Flat list instead of recursive rendering — `flattenTree` produces a `JsonRow[]`; line numbers and alignment are properties of position, not nesting
+- Three row types (`open`/`leaf`/`close`) as a discriminated union
+- `leaf` with `expandable: true` is a collapsed collection; `leaf` with `expandable: false` is a primitive
+- Stable line numbers via double-flatten — two tree walks per render
+- Path as node identity — `path + "." + type` used as map key because a collection produces both `open` and `close` rows at the same path
+- Fixed column layout: line number → button → indent → content
+
+---
+
+### User
+
+json-viewer.tsx is quite complicated. Please walk me through it with more detail, helping me understand not just what the code does as a whole, but how all of the individual code works.
+
+### Claude
+
+Walked through every section in detail:
+
+- **Discriminated union** (`JsonRow`) — `type` field lets TypeScript narrow to the correct shape in each branch
+- **`isCollection`** — `value !== null` guard required because `typeof null === "object"` is a JavaScript language bug
+- **`toEntries`** — normalises arrays and objects into `[key, value][]`; array indices become string keys (`"0"`, `"1"`)
+- **`flattenTree`** — three cases: primitive (base case, one leaf), collapsed collection (one expandable leaf, stops recursing), expanded collection (open row + children + close row)
+- **`JsonPrimitive`** — `null` checked first to avoid the object branch; `&quot;` is the HTML entity for `"`
+- **`ToggleButton`** — controlled component, calls `onToggle(path)`, lets `JsonViewer` own the state
+- **`JsonRowView`** — `hasButton` derived from row type; `flex-none` on fixed columns; inline `style` for depth indent; `select-none` on line numbers
+- **`JsonViewer`** — double-flatten for stable line numbers; `??` nullish coalescing as safety fallback; `new Set(prev)` in toggle handler to avoid mutating state
+- **Full render cycle** — clicking toggle → `handleToggle` → new `Set` → re-render → two `flattenTree` calls → new row list renders
+
+---
+
+### User
+
+That's helpful, thank you. Please update our transcript.
+
+### Claude
+
+*(Transcript updated.)*
+
+---
+
+### User
+
+Why is text-viewer its own component, rather than just being included in body-formatter.tsx?
+
+### Claude
+
+Honestly, there's no strong reason. It's one JSX element — a `<pre>` block — and it's only used in one place. Keeping it as a separate file adds indirection without adding value.
+
+The original thinking was to mirror the structure of `JsonViewer` (a named export in its own file), and to make `BodyFormatter` a clean list of viewer imports. But that's symmetry for its own sake. `JsonViewer` earns its own file because it's a complex, stateful component. `TextView` doesn't.
+
+Want me to inline it?
+
+---
+
+### User
+
+Yes please.
+
+### Claude
+
+*(Inlined the `<pre>` block directly into `body-formatter.tsx` and deleted `text-viewer.tsx`.)*
+
+---
+
+### User
+
+Update our transcript one more time please.
+
+### Claude
+
+*(Transcript updated.)*
+
+---

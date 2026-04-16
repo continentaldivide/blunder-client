@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { TabList, TabPanel, type TabItem } from "../ui/tabs";
+import { BodyViewer } from "./body-viewer";
 import { HeadersTable } from "./headers-table";
 
 const RESPONSE_TABS: TabItem[] = [
@@ -20,7 +21,7 @@ export function ResponseTabs() {
       />
       <div className="mt-3 min-h-20">
         <TabPanel id="body" activeId={activeTab}>
-          {/* Commit 11: response body viewer */}
+          <BodyViewer />
         </TabPanel>
         <TabPanel id="headers" activeId={activeTab}>
           <HeadersTable />
