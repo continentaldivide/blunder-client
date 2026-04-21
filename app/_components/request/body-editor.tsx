@@ -1,22 +1,28 @@
 "use client";
 
-import { useState } from "react";
 import { BodyTextarea } from "./body-textarea";
 import {
   ContentTypeSelector,
   type ContentType,
 } from "./content-type-selector";
 
-export function BodyEditor() {
-  const [contentType, setContentType] = useState<ContentType>(
-    "application/json"
-  );
-  const [body, setBody] = useState("");
+interface BodyEditorProps {
+  contentType: ContentType;
+  onContentTypeChange: (contentType: ContentType) => void;
+  body: string;
+  onBodyChange: (body: string) => void;
+}
 
+export function BodyEditor({
+  contentType,
+  onContentTypeChange,
+  body,
+  onBodyChange,
+}: BodyEditorProps) {
   return (
     <div className="flex flex-col gap-3">
-      <ContentTypeSelector value={contentType} onChange={setContentType} />
-      <BodyTextarea value={body} onChange={setBody} />
+      <ContentTypeSelector value={contentType} onChange={onContentTypeChange} />
+      <BodyTextarea value={body} onChange={onBodyChange} />
     </div>
   );
 }

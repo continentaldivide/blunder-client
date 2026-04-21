@@ -1,20 +1,18 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "../ui/button";
 
-export function SendButton() {
-  const [loading, setLoading] = useState(false);
+interface SendButtonProps {
+  loading: boolean;
+  disabled: boolean;
+  onClick: () => void;
+}
 
-  function handleClick() {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  }
-
+export function SendButton({ loading, disabled, onClick }: SendButtonProps) {
   return (
     <Button
-      onClick={handleClick}
-      disabled={loading}
+      onClick={onClick}
+      disabled={disabled}
       variant="send"
       className="rounded-full px-4 py-1.5 text-xs"
     >

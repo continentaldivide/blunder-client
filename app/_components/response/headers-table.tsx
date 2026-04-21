@@ -1,14 +1,10 @@
 import { HeaderRow, type ResponseHeader } from "./header-row";
 
-// Mock data — will be replaced in Commit 18 when wired to real responses
-const MOCK_HEADERS: ResponseHeader[] = [
-  { key: "content-type", value: "application/json; charset=utf-8" },
-  { key: "content-length", value: "1234" },
-  { key: "cache-control", value: "no-cache, no-store, must-revalidate" },
-  { key: "x-request-id", value: "a1b2c3d4-e5f6-7890-abcd-ef1234567890" },
-];
+interface HeadersTableProps {
+  headers: ResponseHeader[];
+}
 
-export function HeadersTable() {
+export function HeadersTable({ headers }: HeadersTableProps) {
   return (
     <table className="w-full">
       <thead>
@@ -22,7 +18,7 @@ export function HeadersTable() {
         </tr>
       </thead>
       <tbody>
-        {MOCK_HEADERS.map((header) => (
+        {headers.map((header) => (
           <HeaderRow key={header.key} header={header} />
         ))}
       </tbody>

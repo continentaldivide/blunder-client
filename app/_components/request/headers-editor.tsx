@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "../ui/button";
 import { HeaderRow, type Header } from "./header-row";
 
@@ -8,19 +7,22 @@ function makeHeader(): Header {
   return { key: "", value: "" };
 }
 
-export function HeadersEditor() {
-  const [headers, setHeaders] = useState<Header[]>([makeHeader()]);
+interface HeadersEditorProps {
+  headers: Header[];
+  onChange: (headers: Header[]) => void;
+}
 
+export function HeadersEditor({ headers, onChange }: HeadersEditorProps) {
   function addHeader() {
-    setHeaders((prev) => [...prev, makeHeader()]);
+    onChange([...headers, makeHeader()]);
   }
 
   function updateHeader(index: number, updated: Header) {
-    setHeaders((prev) => prev.map((h, i) => (i === index ? updated : h)));
+    onChange(headers.map((h, i) => (i === index ? updated : h)));
   }
 
   function removeHeader(index: number) {
-    setHeaders((prev) => prev.filter((_, i) => i !== index));
+    onChange(headers.filter((_, i) => i !== index));
   }
 
   return (
