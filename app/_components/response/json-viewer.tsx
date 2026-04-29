@@ -21,13 +21,6 @@ function toEntries(value: unknown): [string, unknown][] {
   return Object.entries(value as Record<string, unknown>);
 }
 
-function collectionPreview(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.length}]`;
-  if (value !== null && typeof value === "object")
-    return `{${Object.keys(value as object).length}}`;
-  return "";
-}
-
 // Walks the JSON tree and produces a flat list of renderable rows,
 // skipping children of any path present in `collapsed`.
 function flattenTree(
@@ -60,33 +53,39 @@ function flattenTree(
 // ---- Primitive renderer ----
 
 function JsonPrimitive({ value }: { value: unknown }) {
-  if (value === null) return <span className="text-zinc-500">null</span>;
+  if (value === null)
+    return <span className="italic text-zinc-500">null</span>;
   if (typeof value === "boolean")
     return <span className="text-blue-400">{String(value)}</span>;
   if (typeof value === "number")
     return <span className="text-yellow-300">{String(value)}</span>;
-  if (typeof value === "string")
-    return <span className="text-green-400">&quot;{value}&quot;</span>;
+  if (typeof value === "string") {
+    const isUrl = /^https?:\/\//.test(value);
+    return isUrl ? (
+      <span className="text-blue-300 underline decoration-blue-300/30 underline-offset-[3px]">
+        &quot;{value}&quot;
+      </span>
+    ) : (
+      <span className="text-green-400">&quot;{value}&quot;</span>
+    );
+  }
   return <span>{String(value)}</span>;
 }
 
-// ---- Toggle button ----
+// ---- Indent guide lines ----
 
-interface ToggleButtonProps {
-  path: string;
-  collapsed: Set<string>;
-  onToggle: (path: string) => void;
-}
-
-function ToggleButton({ path, collapsed, onToggle }: ToggleButtonProps) {
+function GuideLines({ depth }: { depth: number }) {
+  if (depth === 0) return null;
   return (
-    <button
-      onClick={() => onToggle(path)}
-      className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 cursor-pointer focus:outline-none"
-      aria-label={collapsed.has(path) ? "Expand" : "Collapse"}
-    >
-      {collapsed.has(path) ? "▶" : "▼"}
-    </button>
+    <>
+      {Array.from({ length: depth }).map((_, i) => (
+        <span
+          key={i}
+          className="pointer-events-none absolute top-0 bottom-0 w-px bg-zinc-800"
+          style={{ left: i * 18 + 12 }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -94,58 +93,88 @@ function ToggleButton({ path, collapsed, onToggle }: ToggleButtonProps) {
 
 interface JsonRowProps {
   row: JsonRow;
-  lineNumber: number;
-  collapsed: Set<string>;
   onToggle: (path: string) => void;
 }
 
-function JsonRowView({ row, lineNumber, collapsed, onToggle }: JsonRowProps) {
-  const hasButton =
-    row.type === "open" ||
-    (row.type === "leaf" && row.expandable);
+function JsonRowView({ row, onToggle }: JsonRowProps) {
+  const isClickable =
+    row.type === "open" || (row.type === "leaf" && row.expandable);
+  const isOpen = row.type === "open";
+
+  // Pre-compute collapsed collection summary
+  let summary: { open: string; close: string; count: number; label: string } | null = null;
+  if (row.type === "leaf" && row.expandable) {
+    const isArr = Array.isArray(row.value);
+    const count = isArr
+      ? (row.value as unknown[]).length
+      : Object.keys(row.value as object).length;
+    summary = {
+      open: isArr ? "[" : "{",
+      close: isArr ? "]" : "}",
+      count,
+      label: isArr ? "items" : count === 1 ? "key" : "keys",
+    };
+  }
 
   return (
-    <div className="flex items-baseline leading-6">
-      {/* Line number */}
-      <span className="w-8 flex-none select-none pr-3 text-right text-zinc-600">
-        {lineNumber}
-      </span>
-      {/* Toggle button — fixed column, always left-aligned */}
-      <span className="w-4 flex-none">
-        {hasButton && (
-          <ToggleButton path={row.path} collapsed={collapsed} onToggle={onToggle} />
+    <div
+      className={`relative flex min-h-[24px] items-center${isClickable ? " cursor-pointer hover:bg-white/[0.02]" : ""}`}
+      style={{ paddingLeft: row.depth * 18 }}
+      onClick={isClickable ? () => onToggle(row.path) : undefined}
+    >
+      <GuideLines depth={row.depth} />
+
+      {/* Chevron (collection rows) or spacer (leaf/close rows) */}
+      {isClickable ? (
+        <span
+          className="inline-flex h-4 w-4 flex-none items-center justify-center text-[9px] text-zinc-500"
+          style={{
+            transform: isOpen ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 120ms ease",
+          }}
+          aria-hidden
+        >
+          ▶
+        </span>
+      ) : (
+        <span className="inline-block w-4 flex-none" />
+      )}
+
+      {/* Row content */}
+      <span>
+        {/* Key label (close rows never have a key) */}
+        {row.type !== "close" && row.key !== null && (
+          <span className="mr-1 text-zinc-400">
+            {row.quoted ? `"${row.key}"` : row.key}:
+          </span>
+        )}
+
+        {/* Opening bracket (expanded collection header) */}
+        {row.type === "open" && (
+          <span className="text-zinc-600">{row.bracket}</span>
+        )}
+
+        {/* Collapsed collection summary: { N keys } or [ N items ] */}
+        {summary && (
+          <>
+            <span className="text-zinc-600">{summary.open}</span>
+            <span className="mx-1.5 text-[11px] italic text-zinc-500">
+              {summary.count} {summary.label}
+            </span>
+            <span className="text-zinc-600">{summary.close}</span>
+          </>
+        )}
+
+        {/* Primitive value */}
+        {row.type === "leaf" && !row.expandable && (
+          <JsonPrimitive value={row.value} />
+        )}
+
+        {/* Closing bracket */}
+        {row.type === "close" && (
+          <span className="text-zinc-600">{row.bracket}</span>
         )}
       </span>
-      {/* Depth indentation */}
-      <span className="flex-none" style={{ width: row.depth * 12 }} />
-      {/* Row content */}
-      {row.type === "open" && (
-        <>
-          {row.key !== null && (
-            <span className="mr-1 text-zinc-400">
-              {row.quoted ? `"${row.key}"` : row.key}:
-            </span>
-          )}
-          <span className="text-zinc-500">{row.bracket}</span>
-        </>
-      )}
-      {row.type === "leaf" && (
-        <>
-          {row.key !== null && (
-            <span className="mr-1 text-zinc-400">
-              {row.quoted ? `"${row.key}"` : row.key}:
-            </span>
-          )}
-          {row.expandable ? (
-            <span className="text-zinc-500">{collectionPreview(row.value)}</span>
-          ) : (
-            <JsonPrimitive value={row.value} />
-          )}
-        </>
-      )}
-      {row.type === "close" && (
-        <span className="text-zinc-500">{row.bracket}</span>
-      )}
     </div>
   );
 }
@@ -168,23 +197,14 @@ export function JsonViewer({ value }: JsonViewerProps) {
     });
   }
 
-  // Flatten fully expanded to assign each row a stable line number by path+type.
-  const allRows = flattenTree(value, null, "root", 0, new Set());
-  const lineNumbers = new Map(
-    allRows.map((row, i) => [`${row.path}.${row.type}`, i + 1])
-  );
-
-  // Flatten with actual collapsed state for what's visible.
   const rows = flattenTree(value, null, "root", 0, collapsed);
 
   return (
-    <div className="overflow-x-auto rounded-lg bg-zinc-950 p-3 font-mono text-sm">
+    <div className="py-2 font-mono text-xs">
       {rows.map((row, i) => (
         <JsonRowView
           key={i}
           row={row}
-          lineNumber={lineNumbers.get(`${row.path}.${row.type}`) ?? i + 1}
-          collapsed={collapsed}
           onToggle={handleToggle}
         />
       ))}

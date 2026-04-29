@@ -40,8 +40,8 @@ export function TabList({
             onClick={() => onActiveIdChange(item.id)}
             className={
               selected
-                ? "border-zinc-50 px-3 py-2 text-sm font-medium text-zinc-50 outline-none focus-visible:ring-2 focus-visible:ring-zinc-700 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
-                : "border-transparent px-3 py-2 text-sm font-medium text-zinc-500 outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-700 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+                ? "-mb-px border-b-2 border-b-green-500 px-3 py-2 text-sm font-medium text-zinc-50 outline-none focus-visible:ring-2 focus-visible:ring-zinc-700 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
+                : "-mb-px border-b-2 border-b-transparent px-3 py-2 text-sm font-medium text-zinc-500 outline-none hover:text-zinc-300 focus-visible:ring-2 focus-visible:ring-zinc-700 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-900"
             }
           >
             {item.label}

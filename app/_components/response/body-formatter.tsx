@@ -23,7 +23,7 @@ export function BodyFormatter({ contentType, body }: BodyFormatterProps) {
   }
 
   return (
-    <pre className="whitespace-pre-wrap break-all rounded-lg bg-zinc-950 p-3 text-xs text-zinc-300 font-mono">
+    <pre className="whitespace-pre-wrap break-all py-2 text-xs text-zinc-300 font-mono">
       {body}
     </pre>
   );
