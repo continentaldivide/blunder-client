@@ -5,8 +5,8 @@ import { useState } from "react";
 // ---- Types ----
 
 type JsonRow =
-  | { type: "open"; key: string | null; path: string; bracket: string; depth: number }
-  | { type: "leaf"; key: string | null; path: string; value: unknown; expandable: boolean; depth: number }
+  | { type: "open"; key: string | null; quoted: boolean; path: string; bracket: string; depth: number }
+  | { type: "leaf"; key: string | null; quoted: boolean; path: string; value: unknown; expandable: boolean; depth: number }
   | { type: "close"; path: string; bracket: string; depth: number };
 
 // ---- Helpers ----
@@ -35,21 +35,23 @@ function flattenTree(
   key: string | null,
   path: string,
   depth: number,
-  collapsed: Set<string>
+  collapsed: Set<string>,
+  quoted: boolean = false
 ): JsonRow[] {
   if (!isCollection(value)) {
-    return [{ type: "leaf", key, path, value, expandable: false, depth }];
+    return [{ type: "leaf", key, quoted, path, value, expandable: false, depth }];
   }
 
-  const [open, close] = Array.isArray(value) ? ["[", "]"] : ["{", "}"];
+  const isArray = Array.isArray(value);
+  const [open, close] = isArray ? ["[", "]"] : ["{", "}"];
 
   if (collapsed.has(path)) {
-    return [{ type: "leaf", key, path, value, expandable: true, depth }];
+    return [{ type: "leaf", key, quoted, path, value, expandable: true, depth }];
   }
 
-  const rows: JsonRow[] = [{ type: "open", key, path, bracket: open, depth }];
+  const rows: JsonRow[] = [{ type: "open", key, quoted, path, bracket: open, depth }];
   for (const [k, v] of toEntries(value)) {
-    rows.push(...flattenTree(v, k, `${path}.${k}`, depth + 1, collapsed));
+    rows.push(...flattenTree(v, k, `${path}.${k}`, depth + 1, collapsed, !isArray));
   }
   rows.push({ type: "close", path, bracket: close, depth });
   return rows;
@@ -80,7 +82,7 @@ function ToggleButton({ path, collapsed, onToggle }: ToggleButtonProps) {
   return (
     <button
       onClick={() => onToggle(path)}
-      className="w-3 text-[9px] text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded cursor-pointer focus:outline-none"
+      className="inline-flex h-4 w-4 items-center justify-center rounded text-[9px] text-zinc-500 hover:bg-zinc-700 hover:text-zinc-300 cursor-pointer focus:outline-none"
       aria-label={collapsed.has(path) ? "Expand" : "Collapse"}
     >
       {collapsed.has(path) ? "▶" : "▼"}
@@ -109,7 +111,7 @@ function JsonRowView({ row, lineNumber, collapsed, onToggle }: JsonRowProps) {
         {lineNumber}
       </span>
       {/* Toggle button — fixed column, always left-aligned */}
-      <span className="w-3 flex-none">
+      <span className="w-4 flex-none">
         {hasButton && (
           <ToggleButton path={row.path} collapsed={collapsed} onToggle={onToggle} />
         )}
@@ -120,7 +122,9 @@ function JsonRowView({ row, lineNumber, collapsed, onToggle }: JsonRowProps) {
       {row.type === "open" && (
         <>
           {row.key !== null && (
-            <span className="text-zinc-400">{row.key}: </span>
+            <span className="mr-1 text-zinc-400">
+              {row.quoted ? `"${row.key}"` : row.key}:
+            </span>
           )}
           <span className="text-zinc-500">{row.bracket}</span>
         </>
@@ -128,7 +132,9 @@ function JsonRowView({ row, lineNumber, collapsed, onToggle }: JsonRowProps) {
       {row.type === "leaf" && (
         <>
           {row.key !== null && (
-            <span className="text-zinc-400">{row.key}: </span>
+            <span className="mr-1 text-zinc-400">
+              {row.quoted ? `"${row.key}"` : row.key}:
+            </span>
           )}
           {row.expandable ? (
             <span className="text-zinc-500">{collectionPreview(row.value)}</span>
