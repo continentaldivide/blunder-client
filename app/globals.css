@@ -68,8 +68,10 @@
   --font-mono: var(--font-jetbrains-mono);
 }
 
-* {
-  border-color: var(--border);
+@layer base {
+  * {
+    border-color: var(--border);
+  }
 }
 
 body {
