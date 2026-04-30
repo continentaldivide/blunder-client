@@ -24,13 +24,13 @@ export function ResponseTabs({ response }: ResponseTabsProps) {
   );
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 flex min-h-0 flex-1 flex-col">
       <TabList
         items={RESPONSE_TABS}
         activeId={activeTab}
         onActiveIdChange={setActiveTab}
       />
-      <div className="mt-3 min-h-20">
+      <div className="mt-3 flex-1 overflow-y-auto">
         <TabPanel id="body" activeId={activeTab}>
           <BodyViewer body={response.body} contentType={contentType} />
         </TabPanel>

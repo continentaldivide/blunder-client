@@ -101,7 +101,10 @@ export function Request({ onResponse }: RequestProps) {
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+      <form
+        className="flex flex-col gap-2 sm:flex-row sm:items-end"
+        onSubmit={(e) => { e.preventDefault(); handleSend(); }}
+      >
         <MethodSelector value={method} onChange={setMethod} />
         <UrlInput
           value={url}
@@ -114,7 +117,7 @@ export function Request({ onResponse }: RequestProps) {
             />
           }
         />
-      </div>
+      </form>
       <RequestTabs
         headers={headers}
         onHeadersChange={setHeaders}

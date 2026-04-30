@@ -26,7 +26,7 @@ export function ResponseCard({ response }: ResponseCardProps) {
   }
 
   return (
-    <section className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
+    <section className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm lg:max-h-[calc(100vh-6.5rem)]">
       <div className="flex items-center gap-3">
         <StatusBadge status={response.status} />
         <ResponseMeta

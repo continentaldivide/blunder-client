@@ -107,7 +107,7 @@ function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
       >
         <GuideLines depth={depth} />
         <span
-          className="inline-flex h-4 w-4 flex-none items-center justify-center text-[9px] text-zinc-500"
+          className="inline-flex h-4 w-4 flex-none select-none items-center justify-center text-[9px] text-zinc-500"
           style={{
             transform: open ? "rotate(90deg)" : "rotate(0deg)",
             transition: "transform 120ms ease",
@@ -122,7 +122,7 @@ function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
           {!open && (
             <>
               <span className="mx-1.5 text-[11px] italic text-zinc-500">
-                {count} {isArray ? "items" : count === 1 ? "key" : "keys"}
+                {count} {isArray ? (count === 1 ? "item" : "items") : count === 1 ? "key" : "keys"}
               </span>
               <span className="text-zinc-600">{closeBracket}</span>
             </>

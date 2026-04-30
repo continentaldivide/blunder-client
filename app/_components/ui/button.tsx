@@ -9,6 +9,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 export function Button({
   variant = "primary",
   className = "",
+  type = "button",
   ...props
 }: ButtonProps) {
   const base =
@@ -21,6 +22,7 @@ export function Button({
 
   return (
     <button
+      type={type}
       className={`${base} ${variants[variant]} ${className}`}
       {...props}
     />
