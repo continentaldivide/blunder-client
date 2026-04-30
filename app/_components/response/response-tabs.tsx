@@ -13,9 +13,10 @@ const RESPONSE_TABS: TabItem[] = [
 
 interface ResponseTabsProps {
   response: ProxyResponse;
+  onUrlClick?: (url: string) => void;
 }
 
-export function ResponseTabs({ response }: ResponseTabsProps) {
+export function ResponseTabs({ response, onUrlClick }: ResponseTabsProps) {
   const [activeTab, setActiveTab] = useState("body");
 
   const contentType = response.headers["content-type"] ?? "";
@@ -32,7 +33,7 @@ export function ResponseTabs({ response }: ResponseTabsProps) {
       />
       <div className="mt-3 flex-1 overflow-y-auto">
         <TabPanel id="body" activeId={activeTab}>
-          <BodyViewer body={response.body} contentType={contentType} />
+          <BodyViewer body={response.body} contentType={contentType} onUrlClick={onUrlClick} />
         </TabPanel>
         <TabPanel id="headers" activeId={activeTab}>
           <HeadersTable headers={headersList} />

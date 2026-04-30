@@ -3,6 +3,7 @@ import { JsonViewer } from "./json-viewer";
 interface BodyFormatterProps {
   contentType: string;
   body: string;
+  onUrlClick?: (url: string) => void;
 }
 
 function parseJson(body: string): unknown | null {
@@ -13,11 +14,11 @@ function parseJson(body: string): unknown | null {
   }
 }
 
-export function BodyFormatter({ contentType, body }: BodyFormatterProps) {
+export function BodyFormatter({ contentType, body, onUrlClick }: BodyFormatterProps) {
   if (contentType.includes("application/json")) {
     const parsed = parseJson(body);
     if (parsed !== null) {
-      return <JsonViewer value={parsed} />;
+      return <JsonViewer value={parsed} onUrlClick={onUrlClick} />;
     }
     // Fall through to text if JSON is malformed
   }

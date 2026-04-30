@@ -14,9 +14,10 @@ function formatSize(bytes: number): string {
 
 interface ResponseCardProps {
   response: ProxyResponse | null;
+  onUrlClick?: (url: string) => void;
 }
 
-export function ResponseCard({ response }: ResponseCardProps) {
+export function ResponseCard({ response, onUrlClick }: ResponseCardProps) {
   if (!response) {
     return (
       <section className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
@@ -34,7 +35,7 @@ export function ResponseCard({ response }: ResponseCardProps) {
           size={formatSize(response.size)}
         />
       </div>
-      <ResponseTabs response={response} />
+      <ResponseTabs response={response} onUrlClick={onUrlClick} />
     </section>
   );
 }

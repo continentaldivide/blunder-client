@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { type ProxyResponse } from "../lib/types";
 import { MethodSelector, type HttpMethod } from "./request/method-selector";
 import { RequestTabs } from "./request/request-tabs";
@@ -38,9 +38,11 @@ function buildAuthHeader(
 
 interface RequestProps {
   onResponse: (response: ProxyResponse) => void;
+  externalUrl?: string | null;
+  onExternalUrlConsumed?: () => void;
 }
 
-export function Request({ onResponse }: RequestProps) {
+export function Request({ onResponse, externalUrl, onExternalUrlConsumed }: RequestProps) {
   const [method, setMethod] = useState<HttpMethod>("GET");
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -58,8 +60,9 @@ export function Request({ onResponse }: RequestProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  async function handleSend() {
-    if (!isValidUrl(url)) return;
+  async function sendRequest(targetUrl: string, methodOverride?: HttpMethod) {
+    if (!isValidUrl(targetUrl)) return;
+    const targetMethod = methodOverride ?? method;
     setLoading(true);
     try {
       const explicitHeaders = Object.fromEntries(
@@ -73,7 +76,7 @@ export function Request({ onResponse }: RequestProps) {
         ...authHeader,
       };
 
-      const hasBody = !NO_BODY_METHODS.includes(method) && body;
+      const hasBody = !NO_BODY_METHODS.includes(targetMethod) && body;
       if (hasBody) {
         allHeaders["Content-Type"] ??= contentType;
       }
@@ -82,8 +85,8 @@ export function Request({ onResponse }: RequestProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          method,
-          url,
+          method: targetMethod,
+          url: targetUrl,
           headers: allHeaders,
           body: hasBody ? body : undefined,
         }),
@@ -92,12 +95,26 @@ export function Request({ onResponse }: RequestProps) {
       const data: ProxyResponse = await res.json();
       onResponse(data);
     } catch (error) {
-      // Network/parse errors — full handling in Commit 19
       console.error("Request failed:", error);
     } finally {
       setLoading(false);
     }
   }
+
+  async function handleSend() {
+    await sendRequest(url);
+  }
+
+  useEffect(() => {
+    if (!externalUrl) return;
+    setUrl(externalUrl);
+    if (method !== "GET") setMethod("GET");
+    void sendRequest(externalUrl, "GET");
+    onExternalUrlConsumed?.();
+  // sendRequest is intentionally omitted — it's recreated each render but we
+  // only want this effect to fire when externalUrl changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [externalUrl]);
 
   return (
     <section className="flex flex-col gap-4 rounded-xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">

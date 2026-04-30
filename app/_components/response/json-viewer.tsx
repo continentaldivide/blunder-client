@@ -16,7 +16,7 @@ function toEntries(value: unknown): [string, unknown][] {
 
 // ---- Primitive renderer ----
 
-function JsonPrimitive({ value }: { value: unknown }) {
+function JsonPrimitive({ value, onUrlClick }: { value: unknown; onUrlClick?: (url: string) => void }) {
   if (value === null)
     return <span className="italic text-zinc-500">null</span>;
   if (typeof value === "boolean")
@@ -25,13 +25,22 @@ function JsonPrimitive({ value }: { value: unknown }) {
     return <span className="text-yellow-300">{String(value)}</span>;
   if (typeof value === "string") {
     const isUrl = /^https?:\/\//.test(value);
-    return isUrl ? (
-      <span className="text-blue-300 underline decoration-blue-300/30 underline-offset-[3px]">
-        &quot;{value}&quot;
-      </span>
-    ) : (
-      <span className="text-green-400">&quot;{value}&quot;</span>
-    );
+    if (isUrl) {
+      return onUrlClick ? (
+        <button
+          type="button"
+          onClick={() => onUrlClick(value)}
+          className="cursor-pointer text-blue-300 underline decoration-blue-300/30 underline-offset-[3px] hover:text-blue-200"
+        >
+          &quot;{value}&quot;
+        </button>
+      ) : (
+        <span className="text-blue-300 underline decoration-blue-300/30 underline-offset-[3px]">
+          &quot;{value}&quot;
+        </span>
+      );
+    }
+    return <span className="text-green-400">&quot;{value}&quot;</span>;
   }
   return <span>{String(value)}</span>;
 }
@@ -60,9 +69,10 @@ interface JsonNodeProps {
   value: unknown;
   depth: number;
   quoted: boolean;
+  onUrlClick?: (url: string) => void;
 }
 
-function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
+function JsonNode({ name, value, depth, quoted, onUrlClick }: JsonNodeProps) {
   const [open, setOpen] = useState(true);
 
   const paddingLeft = depth * 18;
@@ -84,7 +94,7 @@ function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
         <span className="inline-block w-4 flex-none" />
         <span>
           {keyEl}
-          <JsonPrimitive value={value} />
+          <JsonPrimitive value={value} onUrlClick={onUrlClick} />
         </span>
       </div>
     );
@@ -140,6 +150,7 @@ function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
               value={v}
               depth={depth + 1}
               quoted={!isArray}
+              onUrlClick={onUrlClick}
             />
           ))}
           <div
@@ -160,12 +171,13 @@ function JsonNode({ name, value, depth, quoted }: JsonNodeProps) {
 
 interface JsonViewerProps {
   value: unknown;
+  onUrlClick?: (url: string) => void;
 }
 
-export function JsonViewer({ value }: JsonViewerProps) {
+export function JsonViewer({ value, onUrlClick }: JsonViewerProps) {
   return (
     <div className="py-2 font-mono text-xs">
-      <JsonNode name={null} value={value} depth={0} quoted={false} />
+      <JsonNode name={null} value={value} depth={0} quoted={false} onUrlClick={onUrlClick} />
     </div>
   );
 }

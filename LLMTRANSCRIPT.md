@@ -1478,3 +1478,165 @@ Great, thanks. Please update our transcript.
 *(Transcript updated.)*
 
 ---
+
+### User
+
+You are picking up an in-progress project called **blunder client** — a minimal API testing tool (like Thunder Client) built with Next.js 15, TypeScript, and Tailwind CSS v4. *(Full project summary with two outstanding bugs: active tab underline not appearing, and root chevron animation not working.)*
+
+Please confirm once you have understood this summary from which we will continue working, and ask any questions if needed.
+
+### Claude
+
+Read all key files. Diagnosed both bugs:
+
+**Bug 1 — Active tab underline:** `globals.css` had `* { border-color: var(--border); }` outside any CSS `@layer`. In Tailwind v4, utility classes live in `@layer utilities`. Rules outside any layer take cascade precedence over all layered rules regardless of specificity, so `border-b-green-500` could never override it. Fix: wrap in `@layer base { }` so `@layer utilities` can override it.
+
+**Bug 2 — Root chevron animation:** The flat-list approach changed the root node's row type between `"open"` and `"leaf"` while simultaneously removing many sibling DOM nodes. The browser may not reliably fire a CSS inline-style transition under those conditions. Fix: rewrite as recursive `JsonNode` components. Each `JsonNode` owns its own `open` state; the header row (with the chevron) always stays mounted — only children mount/unmount — so the transition fires reliably.
+
+---
+
+### User
+
+Neither issue has been fixed. But let's focus on them one at a time. Table the issue with the chevron animation; we will focus on the border color.
+
+I confirmed that the global border color style in globals.css is the source of the issue. When I remove that style, the green border appears. But wrapping it in a layer base doesn't seem to have helped. Please continue evaluating what's happening here.
+
+### Claude
+
+Inspected the compiled CSS in `.next/dev/static/chunks/`. Confirmed the layer order in the output: `@layer properties` → `@layer theme` → `@layer base` (containing the `*` rule) → `@layer utilities` (containing `.border-b-green-500`). The ordering is correct — utilities should beat base. Concluded the browser was still serving the old CSS chunk from cache, where the rule was still outside any layer.
+
+---
+
+### User
+
+Great. You are right, the issue was that the styles were cached. Sorry for the confusion.
+
+Let's now turn to the chevron animation issue, which is still not fixed.
+
+### Claude
+
+Rewrote `json-viewer.tsx` as recursive `JsonNode` components based on the `json-tree.jsx` reference. Each `JsonNode` owns `const [open, setOpen] = useState(true)`. The header row (chevron) always remains mounted; only children are wrapped in `{open && (...)}`. Because the chevron span never leaves the DOM, the CSS transition fires correctly for all nodes including the root. Child open/closed state resets when a parent collapses and re-expands, which matches the reference design.
+
+---
+
+### User
+
+This still doesn't work. Let's try a different approach.
+
+Please take a look at the way the behavior is programmed in json-tree.jsx. Can we use the approach in that file to produce the desired behavior?
+
+### Claude
+
+Read `json-tree.jsx`. The key insight: it uses recursive components where each `JsonNode` stores `open` in local `useState`. Clicking the header calls `setOpen(!open)` — the `JsonNode` itself never unmounts, so the chevron span persists and the CSS `transition: "transform 120ms ease"` fires every time. Rewrote `json-viewer.tsx` using this architecture, adapted to TypeScript and Tailwind.
+
+---
+
+### User
+
+*(Selected the line `onClick={() => setOpen((v) => !v)}`)*
+
+Please explain this onClick function to me. What does v represent?
+
+### Claude
+
+`v` is the current value of `open` at the moment React processes the update. Passing a function to `setOpen` (the "updater function" form) means React calls it with the freshest state and uses the return value as the new state — `v` is `true` or `false`, and `!v` flips it. The alternative `setOpen(!open)` captures `open` from when the handler was defined. The updater form is the safer habit because React 18/19 batches state updates, and the updater always receives the most current value rather than a potentially stale one.
+
+---
+
+### User
+
+Thanks.
+
+I'd now like to tackle two other small issues.
+
+First, I'd like the chevrons not to be text-selectable. Occasionally I slightly drag when clicking the button, which highlights the character as text and looks quite bad.
+
+Second, there's layout shift occurring due to the scroll bar appearance when the response pane overflows the page. What if we made the pane only extend to the bottom of the window, then made the content inside the pane scrollable? Open to other ideas if you have alternative suggestions.
+
+### Claude
+
+**Chevron selection:** Added `select-none` to the chevron span in `json-viewer.tsx`.
+
+**Layout/scrollbar:** Two-part fix:
+
+- Added `scrollbar-gutter: stable` to `body` in `globals.css` — reserves scrollbar space permanently so layout never shifts when one appears or disappears.
+- Added `lg:max-h-[calc(100vh-6.5rem)]` to the response card section. The `6.5rem` accounts for `py-6` top (1.5rem) + header `h-10` (2.5rem) + header `mb-4` (1rem) + `py-6` bottom (1.5rem) = 104px. This caps the card at viewport height on desktop.
+- Wired a `flex-1 min-h-0 flex flex-col` chain through `response-tabs.tsx` so only the tab panel content area scrolls (`flex-1 overflow-y-auto`), while the status badge and tab bar stay fixed.
+
+---
+
+### User
+
+Great, thanks.
+
+Now for one more small bug fix. When a jsonnode is collapsed and lists a preview of its contents (e.g., "{ 3 keys }", it's always plural -- even when there is only one key or item. Please fix this so that one is singular.
+
+### Claude
+
+Fixed in `json-viewer.tsx`. The array branch previously always used `"items"`. Changed to `count === 1 ? "item" : "items"` to match the existing object branch. Now correctly shows `[ 1 item ]` and `{ 1 key }`.
+
+---
+
+### User
+
+Now for the next issue. Can we make the request form send when the cursor is in the URL field and the user presses Enter?
+
+### Claude
+
+Used the HTML `<form>` approach — semantically correct and handles all submission paths in one place.
+
+Three changes: (1) **`button.tsx`** — defaulted `type` to `"button"`. Without this, any `<button>` inside a `<form>` defaults to `type="submit"`, which would cause `onClick` and `onSubmit` to both fire, calling `handleSend` twice. (2) **`request.tsx`** — wrapped the method selector + URL input row in `<form onSubmit={(e) => { e.preventDefault(); handleSend(); }}>`. (3) `handleSend` already guards with `if (!isValidUrl(url)) return`, so Enter on an invalid URL is silently ignored.
+
+---
+
+### User
+
+Alright, now for a slightly trickier one.
+
+If a value in the response pane is a URL, can we make it clickable such that we send a request to that URL?
+
+### Claude
+
+Implemented end-to-end with prop drilling and an `externalUrl` trigger.
+
+**Component chain** — each file adds `onUrlClick?: (url: string) => void` and passes it down: `response-card.tsx` → `response-tabs.tsx` → `body-viewer.tsx` → `body-formatter.tsx` → `json-viewer.tsx`.
+
+**`json-viewer.tsx`:** `JsonPrimitive` now accepts `onUrlClick`. When a string is a URL and `onUrlClick` is provided, it renders as a `<button type="button">` with hover styling. `onUrlClick` is threaded through `JsonNode` recursively.
+
+**`page.tsx`:** Added `externalUrl` state (initially `null`). Passes `onUrlClick={setExternalUrl}` to `ResponseCard`, and `externalUrl` + `onExternalUrlConsumed={() => setExternalUrl(null)}` to `Request`.
+
+**`request.tsx`:** Extracted send logic to `sendRequest(targetUrl: string)` so it can be called with any URL. `handleSend` calls `sendRequest(url)`. Added a `useEffect` that fires when `externalUrl` changes: updates the URL field, calls `sendRequest(externalUrl)` directly (bypassing state to avoid async timing issues), then resets `externalUrl` to `null` so the same URL can be clicked again.
+
+---
+
+### User
+
+Great, thank you. Please update our transcript now.
+
+### Claude
+
+*(Transcript updated.)*
+
+---
+
+### User
+
+One more change. Let's actually go ahead and make the method swap to GET when clicking a URL in the response pane, if GET is not already selected.
+
+### Claude
+
+Added an optional `methodOverride?: HttpMethod` parameter to `sendRequest`. When provided, `targetMethod = methodOverride ?? method` is used for both the `NO_BODY_METHODS` check and the fetch payload instead of the state value directly.
+
+In the `useEffect` that handles `externalUrl`: added `if (method !== "GET") setMethod("GET")` to update the method selector UI, and passes `"GET"` explicitly to `sendRequest(externalUrl, "GET")`. The override is necessary because `setMethod` is a React state update — it schedules a re-render but doesn't change `method` in the current closure, so the fetch would otherwise still use the old method (e.g. `"POST"`). The `if (method !== "GET")` guard avoids a redundant re-render when GET is already selected.
+
+---
+
+### User
+
+Please update our transcript one more time.
+
+### Claude
+
+*(Transcript updated.)*
+
+---
